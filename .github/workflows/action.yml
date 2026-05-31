@@ -46,18 +46,27 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Instalar Docker si no está instalado (Amazon Linux 2023)
+            if ! command -v docker &> /dev/null; then
+              sudo dnf update -y
+              sudo dnf install -y docker
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker ec2-user
+            fi
+
             # Login en Docker Hub desde EC2
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
             # Bajar imagen actualizada
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops_front:latest
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops_front:latest
 
             # Detener y eliminar contenedor anterior si existe
-            docker stop frontend || true
-            docker rm frontend || true
+            sudo docker stop frontend || true
+            sudo docker rm frontend || true
 
             # Levantar nuevo contenedor
-            docker run -d \
+            sudo docker run -d \
               --name frontend \
               --restart unless-stopped \
               -p 80:5000 \
@@ -68,4 +77,4 @@ jobs:
               ${{ secrets.DOCKERHUB_USERNAME }}/devops_front:latest
 
             # Verificar que el contenedor está corriendo
-            docker ps | grep frontend
+            sudo docker ps | grep frontend
